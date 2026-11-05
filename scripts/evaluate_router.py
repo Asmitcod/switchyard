@@ -5,6 +5,7 @@ import json
 import pickle
 import random
 import sys
+from statistics import mean
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -42,6 +43,40 @@ def evaluate(rows, scores, threshold):
     }
 
 
+def bootstrap_quality(rows, scores, threshold, iterations=1000):
+    rng = random.Random(42)
+    samples = []
+    for _ in range(iterations):
+        indexes = [rng.randrange(len(rows)) for _ in rows]
+        selected = [
+            rows[index]["labels"]["cheap"] if scores[index] >= threshold else rows[index]["labels"]["strong"]
+            for index in indexes
+        ]
+        samples.append(sum(selected) / len(selected))
+    samples.sort()
+    return {
+        "estimate": round(mean(samples), 4),
+        "lower_95": round(samples[int(iterations * 0.025)], 4),
+        "upper_95": round(samples[int(iterations * 0.975) - 1], 4),
+    }
+
+
+def calibration(rows, scores, bins=5):
+    result = []
+    for index in range(bins):
+        lower = index / bins
+        upper = (index + 1) / bins
+        selected = [(score, row["labels"]["cheap"]) for row, score in zip(rows, scores) if lower <= score < upper or (index == bins - 1 and score == 1)]
+        if selected:
+            result.append({
+                "range": f"{lower:.1f}-{upper:.1f}",
+                "count": len(selected),
+                "mean_score": round(mean(score for score, _ in selected), 4),
+                "observed_quality": round(mean(int(label) for _, label in selected), 4),
+            })
+    return result
+
+
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--input", default="data/router_dataset.jsonl")
@@ -68,6 +103,12 @@ def main() -> None:
             "router": router,
             "random": random_curve,
         },
+        "confidence_intervals": {
+            "router_at_0.75": bootstrap_quality(test_rows, scores, 0.75),
+            "always_cheap": bootstrap_quality(test_rows, [1.0] * len(test_rows), 1.0),
+            "always_strong": bootstrap_quality(test_rows, [0.0] * len(test_rows), 1.0),
+        },
+        "calibration": calibration(test_rows, scores),
         "notes": [
             "Labels use exact or substring checks against expected answers.",
             "This dataset is a smoke-test benchmark and is too small for production claims.",

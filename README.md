@@ -54,3 +54,5 @@ python scripts/evaluate_router.py
 The collector stores model responses and verifiable labels in `data/router_dataset.jsonl`. It can be interrupted and rerun; completed prompts are skipped. The first model is intentionally a small baseline dataset, not the final 4,000–6,000 prompt benchmark described in the requirements.
 
 Set `ROUTEWISE_USE_TRAINED_MODEL=true` after collecting a sufficiently large, representative dataset. When enabled and `data/router_model.pkl` exists, the API loads it for routing scores. If it is absent or invalid, the deterministic heuristic remains active so a fresh clone still runs.
+
+The evaluator uses a deterministic held-out split, bootstrap 95% confidence intervals, and score-bin calibration. Do not enable the trained router based on the current smoke benchmark: it has only 19 held-out examples and the calibration is not yet reliable.
