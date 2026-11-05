@@ -36,3 +36,7 @@ $env:GROQ_API_KEY="your-key"
 The proxy is available at `POST /v1/chat/completions`. It routes to the selected tier and retries the other configured tier when the first provider fails. Request metadata is persisted locally in `data/routewise.sqlite3`; raw prompts are never stored, only SHA-256 hashes. Set `ROUTEWISE_SQLITE_PATH` to use another local database path. Neon/Postgres support will use the same schema in the deployment phase.
 
 The Groq connection has been tested locally with the configured GPT OSS models. Empty upstream assistant responses are treated as provider failures so the configured fallback can be attempted.
+
+For deployment, set `ROUTEWISE_API_KEYS` to one or more comma-separated client keys. Clients send `Authorization: Bearer <key>`. Requests are limited to 60 per minute per configured key by default; change `ROUTEWISE_RATE_LIMIT` to adjust the limit. Authentication is disabled only when `ROUTEWISE_API_KEYS` is empty, which is convenient for local development.
+
+`POST /v1/chat/completions` also supports `stream: true` and returns OpenAI-compatible server-sent events.

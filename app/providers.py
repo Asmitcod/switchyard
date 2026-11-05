@@ -55,5 +55,27 @@ def complete(config: ProviderConfig, messages: list[dict], temperature: float | 
     return data
 
 
+def stream_complete(config: ProviderConfig, messages: list[dict], temperature: float | None, max_tokens: int | None):
+    payload = {"model": config.model, "messages": messages, "stream": True}
+    if temperature is not None:
+        payload["temperature"] = temperature
+    if max_tokens is not None:
+        payload["max_tokens"] = max_tokens
+    try:
+        with httpx.stream(
+            "POST",
+            f"{config.base_url}/chat/completions",
+            headers={"Authorization": f"Bearer {config.api_key}"},
+            json=payload,
+            timeout=httpx.Timeout(60.0, connect=5.0),
+        ) as response:
+            response.raise_for_status()
+            for line in response.iter_lines():
+                if line:
+                    yield line
+    except (httpx.TimeoutException, httpx.NetworkError, httpx.HTTPStatusError) as error:
+        raise ProviderError(f"{config.name} streaming request failed: {error}") from error
+
+
 def fallback_order(cheap: bool) -> tuple[str, str]:
     return ("cheap", "strong") if cheap else ("strong", "cheap")

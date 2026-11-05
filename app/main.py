@@ -4,9 +4,9 @@ from pathlib import Path
 from statistics import quantiles
 
 from dotenv import load_dotenv
-from fastapi import FastAPI, HTTPException
+from fastapi import Depends, FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, StreamingResponse
 
 from .models import (
     ChatCompletionRequest,
@@ -23,7 +23,8 @@ FRONTEND = ROOT / "frontend"
 load_dotenv(ROOT / ".env")
 
 from .database import dashboard_rows, initialize_database, log_request
-from .providers import ProviderError, complete, fallback_order, provider_config
+from .providers import ProviderError, complete, fallback_order, provider_config, stream_complete
+from .security import authenticate_and_rate_limit
 
 
 initialize_database()
@@ -43,21 +44,24 @@ def health() -> dict[str, str]:
 
 
 @app.post("/api/route", response_model=RouteResponse)
-def route(request: RouteRequest) -> RouteResponse:
+def route(request: RouteRequest, _: str = Depends(authenticate_and_rate_limit)) -> RouteResponse:
     result = RouteResponse(**route_prompt(request.prompt, request.threshold))
     log_request(result.model_dump(), request.prompt)
     return result
 
 
-@app.post("/v1/chat/completions", response_model=ChatCompletionResponse)
-def chat_completion(request: ChatCompletionRequest) -> ChatCompletionResponse:
-    if request.stream:
-        raise HTTPException(status_code=501, detail="Streaming support is not configured yet")
+@app.post("/v1/chat/completions", response_model=None)
+def chat_completion(
+    request: ChatCompletionRequest,
+    _: str = Depends(authenticate_and_rate_limit),
+) -> ChatCompletionResponse | StreamingResponse:
     prompt = next((message.content for message in reversed(request.messages) if message.role == "user"), None)
     if not prompt:
         raise HTTPException(status_code=422, detail="At least one user message is required")
     routing = route_prompt(prompt, request.threshold)
     messages = [message.model_dump() for message in request.messages]
+    if request.stream:
+        return stream_chat_completion(request, prompt, routing, messages)
     failures: list[str] = []
     fallback_used = False
     started = time.perf_counter()
@@ -94,8 +98,39 @@ def chat_completion(request: ChatCompletionRequest) -> ChatCompletionResponse:
     raise HTTPException(status_code=503, detail={"message": "All configured providers failed", "failures": failures})
 
 
+def stream_chat_completion(
+    request: ChatCompletionRequest,
+    prompt: str,
+    routing: dict,
+    messages: list[dict],
+) -> StreamingResponse:
+    for tier in fallback_order(routing["cheap"]):
+        config = provider_config(tier)
+        if config is None:
+            continue
+        try:
+            chunks = stream_complete(config, messages, request.temperature, request.max_tokens)
+            first_chunk = next(chunks)
+        except (ProviderError, StopIteration):
+            continue
+
+        def events():
+            started = time.perf_counter()
+            yield first_chunk + "\n\n"
+            for chunk in chunks:
+                yield chunk + "\n\n"
+            routing["chosen_model"] = tier
+            routing["cheap"] = tier == "cheap"
+            routing["latency_ms"] = round((time.perf_counter() - started) * 1000, 2)
+            log_request(routing, prompt)
+            yield "data: [DONE]\n\n"
+
+        return StreamingResponse(events(), media_type="text/event-stream")
+    raise HTTPException(status_code=503, detail="All configured providers failed to start streaming")
+
+
 @app.get("/api/dashboard", response_model=DashboardResponse)
-def dashboard() -> DashboardResponse:
+def dashboard(_: str = Depends(authenticate_and_rate_limit)) -> DashboardResponse:
     stored_rows = dashboard_rows()
     rows = [RouteResponse(**row, explanation="Persisted request metadata") for row in stored_rows]
     scores = [row.score for row in rows]
