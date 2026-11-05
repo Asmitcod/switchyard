@@ -6,9 +6,11 @@ import pickle
 import random
 from pathlib import Path
 
-from sklearn.feature_extraction.text import TfidfVectorizer
-from sklearn.linear_model import LogisticRegression
-from sklearn.pipeline import Pipeline
+import sys
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+
+from app.training import training_pipeline
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -28,12 +30,7 @@ def main() -> None:
     examples = [(row["prompt"], int(row["labels"]["cheap"])) for row in train_rows]
     if len({label for _, label in examples}) < 2:
         raise SystemExit("Training requires both successful and unsuccessful cheap-model labels")
-    model = Pipeline(
-        [
-            ("tfidf", TfidfVectorizer(lowercase=True, ngram_range=(1, 2), min_df=1)),
-            ("classifier", LogisticRegression(max_iter=1000, random_state=42)),
-        ]
-    )
+    model = training_pipeline()
     model.fit([prompt for prompt, _ in examples], [label for _, label in examples])
     output = ROOT / args.output
     output.parent.mkdir(parents=True, exist_ok=True)
