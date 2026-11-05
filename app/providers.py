@@ -49,6 +49,9 @@ def complete(config: ProviderConfig, messages: list[dict], temperature: float | 
     data = response.json()
     if not data.get("choices"):
         raise ProviderError(f"{config.name} provider returned no choices")
+    message = data["choices"][0].get("message", {})
+    if not message.get("content") and not message.get("tool_calls"):
+        raise ProviderError(f"{config.name} provider returned an empty assistant message")
     return data
 
 
