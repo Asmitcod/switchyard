@@ -9,3 +9,4 @@ data/*.json
 data/*.jsonl
 data/*.sqlite3
 data/*.pkl
+data/evaluation.json

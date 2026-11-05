@@ -48,6 +48,7 @@ With both Groq models configured, run the resumable collection job:
 ```powershell
 python scripts/collect_dataset.py --limit 16
 python scripts/train_router.py
+python scripts/evaluate_router.py
 ```
 
 The collector stores model responses and verifiable labels in `data/router_dataset.jsonl`. It can be interrupted and rerun; completed prompts are skipped. The first model is intentionally a small baseline dataset, not the final 4,000–6,000 prompt benchmark described in the requirements.
