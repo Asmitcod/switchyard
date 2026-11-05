@@ -1,0 +1,39 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>RouteWise playground</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@600;700&family=Instrument+Sans:wght@400;600&display=swap">
+<link rel="stylesheet" href="assets/style.css"></head><body>
+<header class="top"><a class="brand" href="index.html">RouteWise</a><nav><a href="index.html" aria-current="page">Playground</a><a href="dashboard.html">Dashboard</a></nav></header>
+<main class="wrap">
+<h1>Send each prompt to the cheapest model that can answer it.</h1>
+<p class="lead">Type a prompt and watch the router decide. Move the threshold to trade cost against quality.</p>
+<div class="demo">Live local router. Provider responses will be connected after API credentials are configured.</div>
+<div class="grid">
+<section class="panel"><label for="prompt">Your prompt</label>
+<textarea id="prompt" placeholder="Ask anything, for example: What is the capital of Australia?"></textarea>
+<div class="chips" aria-label="Examples">
+<button data-p="What is the capital of Australia?">Capital city</button>
+<button data-p="Translate good morning to Tamil">Translation</button>
+<button data-p="Derive the gradient of softmax cross-entropy step by step and prove it matches the Jacobian form">Derive a gradient</button>
+<button data-p="Debug this code: def f(x): x.sort() and design an algorithm to optimize it for 1 million items">Debug and optimize</button></div>
+<label for="t">Quality threshold: <span id="tv">0.60</span></label>
+<input id="t" type="range" min="0.3" max="0.9" step="0.01" value="0.6">
+<p class="hint">Higher sends more prompts to the strong model. Lower saves more money.</p></section>
+<section class="panel" aria-live="polite">
+<p class="verdict"><span class="tag" id="tag"></span><b id="route">Waiting for a prompt</b></p>
+<p class="hint" id="why" style="margin-bottom:10px"></p>
+<svg viewBox="0 0 600 220" role="img" aria-label="Routing diagram: a prompt enters a junction and goes to the cheap or strong model">
+<path id="rc" class="rail" d="M40 110 H230 C290 110 310 50 370 50 H500"/><path id="rs" class="rail" d="M40 110 H230 C290 110 310 170 370 170 H500"/>
+<circle class="node" cx="230" cy="110" r="14"/><text class="svgsub" x="40" y="136">Prompt</text><text class="svgsub" x="198" y="140" dx="-6" dy="22">Router</text>
+<rect class="node" x="500" y="28" width="92" height="44" rx="10"/><text class="svgtxt" x="512" y="54">Cheap</text>
+<rect class="node" x="500" y="148" width="92" height="44" rx="10"/><text class="svgtxt" x="512" y="174">Strong</text>
+<circle id="dot" cx="40" cy="110" r="8" fill="#14213d"/></svg>
+<div class="stats">
+<div class="stat"><span>Per 1,000 similar requests</span><b id="c1">-</b></div>
+<div class="stat"><span>With the strong model only</span><b id="c0">-</b></div>
+<div class="stat"><span>Saved on this prompt</span><b id="sv">-</b></div>
+<div class="stat"><span>Answer time</span><b id="lat">-</b></div>
+<div class="stat"><span>Router time</span><b id="rl">-</b></div></div></section></div>
+<section class="section panel"><h2>Cost against quality</h2>
+<p class="hint" style="margin-bottom:10px">The curve shows what a trained router can reach. It beats random routing at every budget. The dot is your current threshold. Illustrative curve, not measured results.</p>
+<svg id="pareto" viewBox="0 0 600 325" role="img" aria-label="Cost versus quality chart comparing the trained router with random routing"></svg></section>
+</main><script src="assets/app.js"></script></body></html>

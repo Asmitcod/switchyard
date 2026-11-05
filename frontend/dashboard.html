@@ -1,0 +1,18 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>RouteWise dashboard</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@600;700&family=Instrument+Sans:wght@400;600&display=swap">
+<link rel="stylesheet" href="assets/style.css"></head><body>
+<header class="top"><a class="brand" href="index.html">RouteWise</a><nav><a href="index.html">Playground</a><a href="dashboard.html" aria-current="page">Dashboard</a></nav></header>
+<main class="wrap"><h2 style="font-size:2rem">Traffic and savings</h2>
+<div class="demo">Live dashboard data from the RouteWise API. Request history is currently held in memory.</div>
+<div class="stats">
+<div class="stat"><span>Requests routed</span><b id="reqs"></b></div>
+<div class="stat"><span>Sent to the cheap model</span><b id="share"></b></div>
+<div class="stat"><span>Estimated savings</span><b id="save"></b></div>
+<div class="stat"><span>Router time, p95</span><b id="p95"></b></div></div>
+<div class="two"><section class="panel"><h2>Where requests went</h2><div class="split" id="split"></div>
+<p class="hint">Teal is the cheap model. Violet is the strong model.</p></section>
+<section class="panel"><h2>Router confidence</h2><div class="hist" id="hist"></div>
+<p class="hint">Each bar counts prompts by how sure the router was that the cheap model is enough, from 0% on the left to 100% on the right.</p></section></div>
+<section class="section panel"><h2>Recent requests</h2><div class="scroll"><table><thead><tr><th>Prompt</th><th>Confidence</th><th>Sent to</th><th>Answer time</th><th>Per 1,000</th></tr></thead><tbody id="rows"></tbody></table></div></section>
+</main><script src="assets/app.js"></script></body></html>
