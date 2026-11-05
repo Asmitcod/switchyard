@@ -3,6 +3,7 @@
 import argparse
 import json
 import pickle
+import random
 from pathlib import Path
 
 from sklearn.feature_extraction.text import TfidfVectorizer
@@ -20,7 +21,11 @@ def main() -> None:
     args = parser.parse_args()
     source = ROOT / args.input
     rows = [json.loads(line) for line in source.read_text(encoding="utf-8").splitlines() if line.strip()]
-    examples = [(row["prompt"], int(row["labels"]["cheap"])) for row in rows]
+    random.Random(42).shuffle(rows)
+    split = max(1, round(len(rows) * 0.2))
+    test_rows = rows[:split]
+    train_rows = rows[split:]
+    examples = [(row["prompt"], int(row["labels"]["cheap"])) for row in train_rows]
     if len({label for _, label in examples}) < 2:
         raise SystemExit("Training requires both successful and unsuccessful cheap-model labels")
     model = Pipeline(
@@ -34,7 +39,11 @@ def main() -> None:
     output.parent.mkdir(parents=True, exist_ok=True)
     with output.open("wb") as file:
         pickle.dump(model, file)
+    predictions = model.predict_proba([row["prompt"] for row in test_rows])[:, 1]
+    correct = sum((score >= 0.5) == bool(row["labels"]["cheap"]) for score, row in zip(predictions, test_rows))
     print(f"trained_examples: {len(examples)}")
+    print(f"held_out_examples: {len(test_rows)}")
+    print(f"held_out_accuracy: {correct / len(test_rows):.4f}")
     print(f"model: {output}")
 
 

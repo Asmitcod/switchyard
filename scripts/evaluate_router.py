@@ -50,17 +50,21 @@ def main() -> None:
     rows = [json.loads(line) for line in (ROOT / args.input).read_text(encoding="utf-8").splitlines() if line.strip()]
     if not rows:
         raise SystemExit("Dataset is empty")
-    scores = [heuristic_score(row["prompt"]) for row in rows]
+    random.Random(42).shuffle(rows)
+    split = max(1, round(len(rows) * 0.2))
+    test_rows = rows[:split]
+    scores = [heuristic_score(row["prompt"]) for row in test_rows]
     thresholds = [round(index / 20, 2) for index in range(21)]
-    router = [evaluate(rows, scores, threshold) for threshold in thresholds]
+    router = [evaluate(test_rows, scores, threshold) for threshold in thresholds]
     random.seed(42)
-    random_scores = [random.random() for _ in rows]
-    random_curve = [evaluate(rows, random_scores, threshold) for threshold in thresholds]
+    random_scores = [random.random() for _ in test_rows]
+    random_curve = [evaluate(test_rows, random_scores, threshold) for threshold in thresholds]
     report = {
         "dataset_size": len(rows),
+        "held_out_size": len(test_rows),
         "strategies": {
-            "always_cheap": {"quality": round(sum(row["labels"]["cheap"] for row in rows) / len(rows), 4), "cheap_share": 1.0, "cost_per_million_tokens": CHEAP_COST},
-            "always_strong": {"quality": round(sum(row["labels"]["strong"] for row in rows) / len(rows), 4), "cheap_share": 0.0, "cost_per_million_tokens": STRONG_COST},
+            "always_cheap": {"quality": round(sum(row["labels"]["cheap"] for row in test_rows) / len(test_rows), 4), "cheap_share": 1.0, "cost_per_million_tokens": CHEAP_COST},
+            "always_strong": {"quality": round(sum(row["labels"]["strong"] for row in test_rows) / len(test_rows), 4), "cheap_share": 0.0, "cost_per_million_tokens": STRONG_COST},
             "router": router,
             "random": random_curve,
         },
