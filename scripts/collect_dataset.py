@@ -33,6 +33,15 @@ PROMPTS = [
     ("code", "Write a Python function that adds two numbers.", "def"),
 ]
 
+for number in range(1, 21):
+    PROMPTS.extend(
+        [
+            ("math", f"What is {number} plus {number + 7}?", str(number + number + 7)),
+            ("math", f"What is {number + 3} multiplied by 2?", str((number + 3) * 2)),
+            ("knowledge", f"How many sides does a regular polygon with {number} sides have?", str(number)),
+        ]
+    )
+
 
 def answer(config, prompt: str) -> tuple[str, int, int]:
     result = complete(config, [{"role": "user", "content": prompt}], 0.0, 256)
@@ -86,7 +95,7 @@ def main() -> None:
                     row["usage"][tier] = {"error": str(error)}
                 time.sleep(args.delay)
             row["labels"] = {
-                tier: expected.lower() in text.lower()
+                tier: bool(expected) and expected.lower() in text.lower()
                 for tier, text in row["responses"].items()
             }
             file.write(json.dumps(row, ensure_ascii=False) + "\n")
