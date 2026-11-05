@@ -33,4 +33,4 @@ The backend currently uses a deterministic heuristic router so the UI and API ca
 $env:GROQ_API_KEY="your-key"
 ```
 
-The proxy is available at `POST /v1/chat/completions`. It routes to the selected tier and retries the other configured tier when the first provider fails. Raw prompts are not persisted by the current in-memory request log; persistent database logging will be added next.
+The proxy is available at `POST /v1/chat/completions`. It routes to the selected tier and retries the other configured tier when the first provider fails. Request metadata is persisted locally in `data/routewise.sqlite3`; raw prompts are never stored, only SHA-256 hashes. Set `ROUTEWISE_SQLITE_PATH` to use another local database path. Neon/Postgres support will use the same schema in the deployment phase.

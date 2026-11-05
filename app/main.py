@@ -1,6 +1,5 @@
 import hashlib
 import time
-from collections import deque
 from pathlib import Path
 from statistics import quantiles
 
@@ -16,14 +15,15 @@ from .models import (
     RouteRequest,
     RouteResponse,
 )
+from .database import dashboard_rows, initialize_database, log_request
 from .providers import ProviderError, complete, fallback_order, provider_config
 from .router import route_prompt
 
 
 ROOT = Path(__file__).resolve().parents[1]
 FRONTEND = ROOT / "frontend"
-REQUESTS: deque[RouteResponse] = deque(maxlen=400)
 load_dotenv(ROOT / ".env")
+initialize_database()
 
 app = FastAPI(title="RouteWise API", version="0.1.0")
 app.add_middleware(
@@ -42,7 +42,7 @@ def health() -> dict[str, str]:
 @app.post("/api/route", response_model=RouteResponse)
 def route(request: RouteRequest) -> RouteResponse:
     result = RouteResponse(**route_prompt(request.prompt, request.threshold))
-    REQUESTS.append(result)
+    log_request(result.model_dump(), request.prompt)
     return result
 
 
@@ -56,6 +56,7 @@ def chat_completion(request: ChatCompletionRequest) -> ChatCompletionResponse:
     routing = route_prompt(prompt, request.threshold)
     messages = [message.model_dump() for message in request.messages]
     failures: list[str] = []
+    fallback_used = False
     started = time.perf_counter()
     for tier in fallback_order(routing["cheap"]):
         config = provider_config(tier)
@@ -75,16 +76,25 @@ def chat_completion(request: ChatCompletionRequest) -> ChatCompletionResponse:
             routing["chosen_model"] = tier
             routing["cheap"] = tier == "cheap"
             routing["latency_ms"] = round((time.perf_counter() - started) * 1000, 2)
-            REQUESTS.append(RouteResponse(**routing))
+            usage = result.usage
+            log_request(
+                routing,
+                prompt,
+                input_tokens=usage.get("prompt_tokens", 0),
+                output_tokens=usage.get("completion_tokens", 0),
+                fallback_used=fallback_used,
+            )
             return result
         except ProviderError as error:
             failures.append(str(error))
+            fallback_used = True
     raise HTTPException(status_code=503, detail={"message": "All configured providers failed", "failures": failures})
 
 
 @app.get("/api/dashboard", response_model=DashboardResponse)
 def dashboard() -> DashboardResponse:
-    rows = list(REQUESTS)
+    stored_rows = dashboard_rows()
+    rows = [RouteResponse(**row, explanation="Persisted request metadata") for row in stored_rows]
     scores = [row.score for row in rows]
     cheap_count = sum(row.cheap for row in rows)
     cheap_share = cheap_count / len(rows) if rows else 0.0
@@ -97,7 +107,7 @@ def dashboard() -> DashboardResponse:
         estimated_savings=round(savings, 4),
         router_p95_ms=round(p95, 3),
         confidence_scores=scores,
-        recent_requests=list(reversed(rows[-8:])),
+        recent_requests=rows[:8],
     )
 
 
