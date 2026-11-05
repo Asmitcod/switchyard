@@ -15,14 +15,17 @@ from .models import (
     RouteRequest,
     RouteResponse,
 )
-from .database import dashboard_rows, initialize_database, log_request
-from .providers import ProviderError, complete, fallback_order, provider_config
 from .router import route_prompt
 
 
 ROOT = Path(__file__).resolve().parents[1]
 FRONTEND = ROOT / "frontend"
 load_dotenv(ROOT / ".env")
+
+from .database import dashboard_rows, initialize_database, log_request
+from .providers import ProviderError, complete, fallback_order, provider_config
+
+
 initialize_database()
 
 app = FastAPI(title="RouteWise API", version="0.1.0")
