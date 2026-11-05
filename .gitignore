@@ -6,4 +6,6 @@ __pycache__/
 .env
 .pytest_cache/
 data/*.json
+data/*.jsonl
 data/*.sqlite3
+data/*.pkl

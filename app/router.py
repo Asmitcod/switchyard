@@ -1,14 +1,46 @@
+import os
+import pickle
 import re
 import time
+from functools import lru_cache
+from pathlib import Path
 
 
 CHEAP_PRICE_PER_MILLION = 0.05
 STRONG_PRICE_PER_MILLION = 0.60
 EASY_TERMS = ("capital", "translate", "define", "what is", "summarize", "spell", "convert", "list", "rewrite")
 HARD_TERMS = ("prove", "derive", "step by step", "optimize", "debug", "analyze", "compare", "why", "design", "algorithm", "integral", "code")
+MODEL_PATH = Path(os.getenv("ROUTEWISE_MODEL_PATH", Path(__file__).resolve().parents[1] / "data" / "router_model.pkl"))
+USE_TRAINED_MODEL = os.getenv("ROUTEWISE_USE_TRAINED_MODEL", "false").lower() == "true"
+
+
+@lru_cache(maxsize=1)
+def _trained_model():
+    if not MODEL_PATH.is_file():
+        return None
+    try:
+        with MODEL_PATH.open("rb") as file:
+            return pickle.load(file)
+    except (OSError, EOFError, ImportError, AttributeError, ValueError):
+        return None
+
+
+def _trained_score(prompt: str) -> float | None:
+    if not USE_TRAINED_MODEL:
+        return None
+    model = _trained_model()
+    if model is None:
+        return None
+    try:
+        return float(model.predict_proba([prompt])[0][1])
+    except (AttributeError, ValueError):
+        return None
 
 
 def score_prompt(prompt: str) -> float:
+    trained_score = _trained_score(prompt)
+    if trained_score is not None:
+        return max(0.03, min(0.97, trained_score))
     lowered = prompt.lower()
     words = len(lowered.split())
     score = 0.78 - min(words, 120) / 120 * 0.32

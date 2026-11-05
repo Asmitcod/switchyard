@@ -40,3 +40,16 @@ The Groq connection has been tested locally with the configured GPT OSS models. 
 For deployment, set `ROUTEWISE_API_KEYS` to one or more comma-separated client keys. Clients send `Authorization: Bearer <key>`. Requests are limited to 60 per minute per configured key by default; change `ROUTEWISE_RATE_LIMIT` to adjust the limit. Authentication is disabled only when `ROUTEWISE_API_KEYS` is empty, which is convenient for local development.
 
 `POST /v1/chat/completions` also supports `stream: true` and returns OpenAI-compatible server-sent events.
+
+## Collect and train a first router
+
+With both Groq models configured, run the resumable collection job:
+
+```powershell
+python scripts/collect_dataset.py --limit 16
+python scripts/train_router.py
+```
+
+The collector stores model responses and verifiable labels in `data/router_dataset.jsonl`. It can be interrupted and rerun; completed prompts are skipped. The first model is intentionally a small baseline dataset, not the final 4,000–6,000 prompt benchmark described in the requirements.
+
+Set `ROUTEWISE_USE_TRAINED_MODEL=true` after collecting a sufficiently large, representative dataset. When enabled and `data/router_model.pkl` exists, the API loads it for routing scores. If it is absent or invalid, the deterministic heuristic remains active so a fresh clone still runs.
