@@ -8,6 +8,10 @@ import sys
 from statistics import mean
 from pathlib import Path
 
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.linear_model import LogisticRegression
+from sklearn.pipeline import Pipeline
+
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
@@ -77,6 +81,32 @@ def calibration(rows, scores, bins=5):
     return result
 
 
+def category_heldout(rows):
+    categories = sorted({row["category"] for row in rows})
+    results = []
+    for held_out in categories:
+        train = [row for row in rows if row["category"] != held_out]
+        test = [row for row in rows if row["category"] == held_out]
+        labels = [int(row["labels"]["cheap"]) for row in train]
+        if len(set(labels)) < 2 or not test:
+            continue
+        model = Pipeline(
+            [
+                ("tfidf", TfidfVectorizer(ngram_range=(1, 2), min_df=1)),
+                ("classifier", LogisticRegression(max_iter=1000, random_state=42)),
+            ]
+        )
+        model.fit([row["prompt"] for row in train], labels)
+        predictions = model.predict_proba([row["prompt"] for row in test])[:, 1]
+        correct = sum((score >= 0.5) == bool(row["labels"]["cheap"]) for score, row in zip(predictions, test))
+        results.append({
+            "held_out_category": held_out,
+            "test_size": len(test),
+            "accuracy": round(correct / len(test), 4),
+        })
+    return results
+
+
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--input", default="data/router_dataset.jsonl")
@@ -109,6 +139,7 @@ def main() -> None:
             "always_strong": bootstrap_quality(test_rows, [0.0] * len(test_rows), 1.0),
         },
         "calibration": calibration(test_rows, scores),
+        "category_heldout": category_heldout(rows),
         "notes": [
             "Labels use exact or substring checks against expected answers.",
             "This dataset is a smoke-test benchmark and is too small for production claims.",
