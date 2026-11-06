@@ -56,6 +56,8 @@ For deployment, set `ROUTEWISE_API_KEYS` to one or more comma-separated client k
 
 `POST /v1/chat/completions` also supports `stream: true` and returns OpenAI-compatible server-sent events.
 
+`GET /v1/models` exposes the configured RouteWise model and provider tiers for OpenAI-compatible client discovery.
+
 ## Collect and train a first router
 
 With both Groq models configured, run the resumable collection job:

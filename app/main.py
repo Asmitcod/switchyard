@@ -43,6 +43,33 @@ def health() -> dict[str, str]:
     return {"status": "ok"}
 
 
+@app.get("/v1/models")
+def models() -> dict:
+    available = []
+    for tier in ("cheap", "strong"):
+        config = provider_config(tier)
+        if config:
+            available.append(
+                {
+                    "id": config.model,
+                    "object": "model",
+                    "owned_by": "routewise",
+                }
+            )
+    return {
+        "object": "list",
+        "data": [
+            {
+                "id": "routewise",
+                "object": "model",
+                "owned_by": "routewise",
+                "capabilities": {"chat_completions": True, "streaming": True},
+                "tiers": available,
+            }
+        ],
+    }
+
+
 @app.post("/api/route", response_model=RouteResponse)
 def route(request: RouteRequest, _: str = Depends(authenticate_and_rate_limit)) -> RouteResponse:
     result = RouteResponse(**route_prompt(request.prompt, request.threshold))

@@ -1,4 +1,5 @@
 import hashlib
+import logging
 import os
 import sqlite3
 from pathlib import Path
@@ -13,7 +14,9 @@ ROOT = Path(__file__).resolve().parents[1]
 DATA_DIR = ROOT / "data"
 DATABASE_PATH = Path(os.getenv("ROUTEWISE_SQLITE_PATH", DATA_DIR / "routewise.sqlite3"))
 DATABASE_URL = os.getenv("DATABASE_URL")
+_use_postgres = bool(DATABASE_URL)
 _LOCK = Lock()
+LOGGER = logging.getLogger(__name__)
 
 
 def _sqlite_connection() -> sqlite3.Connection:
@@ -24,8 +27,13 @@ def _sqlite_connection() -> sqlite3.Connection:
 
 
 def _connection() -> Any:
-    if DATABASE_URL:
-        return psycopg.connect(DATABASE_URL, row_factory=dict_row)
+    global _use_postgres
+    if _use_postgres and DATABASE_URL:
+        try:
+            return psycopg.connect(DATABASE_URL, row_factory=dict_row)
+        except (psycopg.Error, OSError) as error:
+            _use_postgres = False
+            LOGGER.warning("Neon unavailable; falling back to SQLite: %s", error)
     return _sqlite_connection()
 
 
@@ -49,9 +57,9 @@ def initialize_database() -> None:
                 fallback_used {boolean_type} NOT NULL DEFAULT {false_value}
             )
         """.format(
-            id_type="SERIAL PRIMARY KEY" if DATABASE_URL else "INTEGER PRIMARY KEY AUTOINCREMENT",
-            boolean_type="BOOLEAN" if DATABASE_URL else "INTEGER",
-            false_value="FALSE" if DATABASE_URL else "0",
+            id_type="SERIAL PRIMARY KEY" if _use_postgres else "INTEGER PRIMARY KEY AUTOINCREMENT",
+            boolean_type="BOOLEAN" if _use_postgres else "INTEGER",
+            false_value="FALSE" if _use_postgres else "0",
         )
         connection.execute(schema)
         connection.execute("CREATE INDEX IF NOT EXISTS idx_request_logs_created_at ON request_logs (created_at)")
@@ -63,7 +71,7 @@ def prompt_hash(prompt: str) -> str:
 
 def log_request(result: dict[str, Any], prompt: str, input_tokens: int = 0, output_tokens: int = 0, fallback_used: bool = False) -> None:
     with _LOCK, _connection() as connection:
-        placeholder = "%s" if DATABASE_URL else "?"
+        placeholder = "%s" if _use_postgres else "?"
         connection.execute(
             f"""
             INSERT INTO request_logs (
@@ -77,21 +85,21 @@ def log_request(result: dict[str, Any], prompt: str, input_tokens: int = 0, outp
                 result["score"],
                 result["threshold"],
                 result["chosen_model"],
-                bool(result["cheap"]) if DATABASE_URL else int(result["cheap"]),
+                bool(result["cheap"]) if _use_postgres else int(result["cheap"]),
                 result["estimated_cost_per_1000"],
                 result["strong_cost_per_1000"],
                 result["latency_ms"],
                 result["router_latency_ms"],
                 input_tokens,
                 output_tokens,
-                bool(fallback_used) if DATABASE_URL else int(fallback_used),
+                bool(fallback_used) if _use_postgres else int(fallback_used),
             ),
         )
 
 
 def dashboard_rows(limit: int = 400) -> list[dict[str, Any]]:
     with _LOCK, _connection() as connection:
-        placeholder = "%s" if DATABASE_URL else "?"
+        placeholder = "%s" if _use_postgres else "?"
         rows = connection.execute(
             """
             SELECT score, threshold, chosen_model, cheap,
