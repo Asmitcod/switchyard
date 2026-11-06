@@ -13,6 +13,19 @@ python -m uvicorn app.main:app --reload
 
 Open `http://127.0.0.1:8000/` for the playground and `http://127.0.0.1:8000/dashboard` for the dashboard.
 
+Run the automated checks with:
+
+```powershell
+pytest
+```
+
+Build the deployment image with:
+
+```powershell
+docker build -t switchyard .
+docker run --env-file .env -p 8000:8000 switchyard
+```
+
 The easiest setup is:
 
 ```powershell
