@@ -108,3 +108,28 @@ def test_status_requires_configured_api_key(monkeypatch):
 
     assert unauthorized.status_code == 401
     assert authorized.status_code == 200
+
+
+def test_playground_endpoints_remain_public_when_api_keys_are_configured(monkeypatch):
+    monkeypatch.setenv("ROUTEWISE_API_KEYS", "dashboard-only-key")
+    config = ProviderConfig("cheap", "https://provider.test", "test-key", "test-model")
+    monkeypatch.setattr("app.main.provider_config", lambda tier: config if tier == "cheap" else None)
+    monkeypatch.setattr(
+        "app.main.complete",
+        lambda *_args: {
+            "id": "chatcmpl-playground",
+            "created": 1,
+            "choices": [{"message": {"role": "assistant", "content": "public answer"}}],
+            "usage": {},
+        },
+    )
+    monkeypatch.setattr("app.main.log_request", lambda *_args, **_kwargs: None)
+
+    route_response = client.post("/api/route", json={"prompt": "hello"})
+    answer_response = client.post(
+        "/api/playground",
+        json={"messages": [{"role": "user", "content": "hello"}]},
+    )
+
+    assert route_response.status_code == 200
+    assert answer_response.status_code == 200

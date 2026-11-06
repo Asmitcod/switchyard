@@ -98,10 +98,15 @@ def models() -> dict:
 
 
 @app.post("/api/route", response_model=RouteResponse)
-def route(request: RouteRequest, _: str = Depends(authenticate_and_rate_limit)) -> RouteResponse:
+def route(request: RouteRequest) -> RouteResponse:
     result = RouteResponse(**route_prompt(request.prompt, request.threshold))
     log_request(result.model_dump(), request.prompt)
     return result
+
+
+@app.post("/api/playground", response_model=None)
+def playground_completion(request: ChatCompletionRequest) -> ChatCompletionResponse | StreamingResponse:
+    return chat_completion(request)
 
 
 @app.post("/v1/chat/completions", response_model=None)

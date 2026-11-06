@@ -26,9 +26,9 @@ request counts, cheap-model share, estimated savings, and recent routing data.
 5. Open the [dashboard](https://switchyard-3l2r.onrender.com/dashboard) to
    inspect routing activity.
 
-If API protection is enabled, the browser asks for the value configured as
+The playground is public so visitors can try it without an API key. The
+dashboard and direct `/v1/chat/completions` API remain protected by
 `ROUTEWISE_API_KEYS`. Never use or share the Groq provider key with end users.
-The browser keeps the RouteWise key only in the current session.
 
 ## Models and routing
 
@@ -52,7 +52,7 @@ ROUTEWISE_USE_TRAINED_MODEL=true
 
 ## OpenAI-compatible API
 
-Use the RouteWise API key, not the Groq key:
+Use the RouteWise API key, not the Groq key, for the protected direct API:
 
 ```python
 from openai import OpenAI

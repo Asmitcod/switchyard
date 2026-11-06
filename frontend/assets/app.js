@@ -4,6 +4,86 @@ function usd(value) {
   return "$" + Number(value).toFixed(3);
 }
 
+function escapeHtml(value) {
+  return value.replace(/[&<>"']/g, character => ({
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    '"': "&quot;",
+    "'": "&#39;"
+  }[character]));
+}
+
+function inlineMarkdown(value) {
+  return value
+    .replace(/`([^`]+)`/g, "<code>$1</code>")
+    .replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>")
+    .replace(/__([^_]+)__/g, "<strong>$1</strong>")
+    .replace(/\*([^*]+)\*/g, "<em>$1</em>")
+    .replace(/_([^_]+)_/g, "<em>$1</em>");
+}
+
+function renderMarkdown(markdown) {
+  const lines = escapeHtml(markdown).split("\n");
+  const html = [];
+  let code = false;
+  let codeLines = [];
+  let listType = null;
+
+  const closeList = () => {
+    if (listType) {
+      html.push(`</${listType}>`);
+      listType = null;
+    }
+  };
+
+  lines.forEach(line => {
+    if (line.trim().startsWith("```")) {
+      if (code) {
+        html.push(`<pre><code>${codeLines.join("\n")}</code></pre>`);
+        codeLines = [];
+      }
+      code = !code;
+      closeList();
+      return;
+    }
+    if (code) {
+      codeLines.push(line);
+      return;
+    }
+
+    const heading = line.match(/^#{1,3}\s+(.+)$/);
+    const unordered = line.match(/^[-*]\s+(.+)$/);
+    const ordered = line.match(/^\d+\.\s+(.+)$/);
+    if (!line.trim()) {
+      closeList();
+      return;
+    }
+    if (heading) {
+      closeList();
+      const level = Math.min(heading[0].indexOf(" "), 3);
+      html.push(`<h${level}>${inlineMarkdown(heading[1])}</h${level}>`);
+      return;
+    }
+    if (unordered || ordered) {
+      const nextType = unordered ? "ul" : "ol";
+      if (listType !== nextType) {
+        closeList();
+        listType = nextType;
+        html.push(`<${listType}>`);
+      }
+      html.push(`<li>${inlineMarkdown((unordered || ordered)[1])}</li>`);
+      return;
+    }
+    closeList();
+    html.push(`<p>${inlineMarkdown(line)}</p>`);
+  });
+
+  if (code) html.push(`<pre><code>${codeLines.join("\n")}</code></pre>`);
+  closeList();
+  return html.join("");
+}
+
 async function apiFetch(url, options = {}) {
   const headers = new Headers(options.headers || {});
   const storedKey = sessionStorage.getItem("routewise_api_key");
@@ -55,7 +135,7 @@ async function routePrompt(prompt, threshold) {
 }
 
 async function completePrompt(prompt, threshold) {
-  const response = await apiFetch("/v1/chat/completions", {
+  const response = await apiFetch("/api/playground", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
@@ -104,7 +184,7 @@ function playground() {
       $("#lat").textContent = Math.round(result.latency_ms) + " ms";
       $("#rl").textContent = result.router_latency_ms.toFixed(1) + " ms";
       $("#source").textContent = `Answered by ${answer.model} (${result.cheap ? "cheap" : "strong"} tier).`;
-      $("#answer").textContent = answer.content;
+      $("#answer").innerHTML = renderMarkdown(answer.content);
       if (prompt !== lastPrompt) {
         $("#rc").className = "rail cheap" + (result.cheap ? "" : " off");
         $("#rs").className = "rail strong" + (result.cheap ? " off" : "");

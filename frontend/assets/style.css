@@ -35,6 +35,15 @@ svg{display:block;width:100%;height:auto}
 .stat span{display:block;color:var(--mute);font-size:.85rem}
 .stat b{font-size:1.25rem}
 .section{margin-top:36px}
+.answer{font-size:1.02rem;line-height:1.7}
+#answer:empty{display:none}
+#answer p{margin:0 0 12px}
+#answer p:last-child{margin-bottom:0}
+#answer h1,#answer h2,#answer h3{margin:18px 0 8px}
+#answer ul,#answer ol{margin:0 0 12px;padding-left:24px}
+#answer code{background:#eef1f6;border-radius:4px;padding:2px 5px;font:0.9em ui-monospace,SFMono-Regular,Consolas,monospace}
+#answer pre{overflow-x:auto;background:#17233d;color:#f5f7fb;border-radius:10px;padding:14px;margin:12px 0}
+#answer pre code{background:transparent;padding:0;color:inherit}
 .demo{background:#fff6d6;border:1px solid #e8d48a;border-radius:10px;padding:8px 12px;font-size:.9rem;margin-top:18px}
 table{width:100%;border-collapse:collapse;font-size:.92rem}
 th,td{text-align:left;padding:10px 8px;border-bottom:1px solid var(--line)}
