@@ -14,6 +14,25 @@ sys.path.insert(0, str(ROOT))
 from app.providers import ProviderError, complete, provider_config
 
 
+ALIASES = {
+    "tradeoff": ("tradeoff", "trade off"),
+    "validate": ("validate", "validation"),
+    "constant": ("constant", "o(1)", "constant time"),
+    "duplicate": ("duplicate", "duplicated"),
+    "invalid": ("invalid", "stale", "out of date"),
+    "monitor": ("monitor", "monitoring", "observability"),
+    "unseen": ("unseen", "held out", "generalize"),
+    "secret": ("secret", "api key", "credential"),
+    "bugs": ("bug", "error", "failure"),
+}
+
+
+def label_matches(expected: str, response: str) -> bool:
+    normalized = " ".join(response.lower().split())
+    accepted = ALIASES.get(expected.lower(), (expected.lower(),))
+    return bool(response.strip()) and any(term in normalized for term in accepted)
+
+
 PROMPTS = [
     ("knowledge", "What is the capital of Australia?", "canberra"),
     ("knowledge", "What gas do plants absorb from the atmosphere?", "carbon dioxide"),
@@ -62,9 +81,20 @@ for number in range(1, 21):
         ]
     )
 
+for index in range(1, 31):
+    PROMPTS.extend(
+        [
+            ("reasoning", f"Explain one practical tradeoff of caching in a web service, example {index}.", "tradeoff"),
+            ("reasoning", f"Explain one reason an API should validate input, example {index}.", "validate"),
+            ("code", f"Explain why a Python dictionary lookup is usually fast, example {index}.", "constant"),
+            ("code", f"Describe one edge case when removing duplicates from a list, example {index}.", "duplicate"),
+            ("math", f"A service receives {index + 2} requests per second for 10 seconds. How many requests arrive?", str((index + 2) * 10)),
+        ]
+    )
+
 
 def answer(config, prompt: str) -> tuple[str, int, int]:
-    result = complete(config, [{"role": "user", "content": prompt}], 0.0, 256)
+    result = complete(config, [{"role": "user", "content": prompt}], 0.0, 768)
     message = result["choices"][0]["message"]
     usage = result.get("usage", {})
     return (
@@ -92,7 +122,9 @@ def main() -> None:
     if output.exists():
         for line in output.read_text(encoding="utf-8").splitlines():
             if line.strip():
-                completed.add(json.loads(line)["prompt"])
+                row = json.loads(line)
+                if all(row.get("responses", {}).get(tier, "").strip() for tier in ("cheap", "strong")):
+                    completed.add(row["prompt"])
 
     with output.open("a", encoding="utf-8") as file:
         for category, prompt, expected in PROMPTS[: args.limit]:
@@ -115,12 +147,15 @@ def main() -> None:
                     row["usage"][tier] = {"error": str(error)}
                 time.sleep(args.delay)
             row["labels"] = {
-                tier: bool(expected) and expected.lower() in text.lower()
+                tier: label_matches(expected, text)
                 for tier, text in row["responses"].items()
             }
-            file.write(json.dumps(row, ensure_ascii=False) + "\n")
-            file.flush()
-            print(f"collected: {category} - {prompt}")
+            if all(row["responses"].get(tier, "").strip() for tier in ("cheap", "strong")):
+                file.write(json.dumps(row, ensure_ascii=False) + "\n")
+                file.flush()
+                print(f"collected: {category} - {prompt}")
+            else:
+                print(f"retry-needed: {category} - {prompt}")
 
 
 if __name__ == "__main__":
