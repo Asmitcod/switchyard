@@ -66,7 +66,10 @@ async function completePrompt(prompt, threshold) {
   });
   if (!response.ok) throw new Error("The model provider returned an error.");
   const data = await response.json();
-  return data.choices?.[0]?.message?.content || "The provider returned an empty answer.";
+  return {
+    content: data.choices?.[0]?.message?.content || "The provider returned an empty answer.",
+    model: data.model || "configured provider"
+  };
 }
 
 function playground() {
@@ -100,7 +103,8 @@ function playground() {
       $("#sv").textContent = Math.round((1 - result.estimated_cost_per_1000 / result.strong_cost_per_1000) * 100) + "%";
       $("#lat").textContent = Math.round(result.latency_ms) + " ms";
       $("#rl").textContent = result.router_latency_ms.toFixed(1) + " ms";
-      $("#answer").textContent = answer;
+      $("#source").textContent = `Answered by ${answer.model} (${result.cheap ? "cheap" : "strong"} tier).`;
+      $("#answer").textContent = answer.content;
       if (prompt !== lastPrompt) {
         $("#rc").className = "rail cheap" + (result.cheap ? "" : " off");
         $("#rs").className = "rail strong" + (result.cheap ? " off" : "");
@@ -109,6 +113,7 @@ function playground() {
     } catch (error) {
       $("#route").textContent = "Router unavailable";
       $("#why").textContent = error.message;
+      $("#source").textContent = "Provider response unavailable.";
       $("#answer").textContent = "Unable to generate an answer.";
     }
   }
