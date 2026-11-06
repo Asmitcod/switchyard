@@ -54,6 +54,21 @@ async function routePrompt(prompt, threshold) {
   return response.json();
 }
 
+async function completePrompt(prompt, threshold) {
+  const response = await apiFetch("/v1/chat/completions", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      model: "routewise",
+      messages: [{ role: "user", content: prompt }],
+      threshold
+    })
+  });
+  if (!response.ok) throw new Error("The model provider returned an error.");
+  const data = await response.json();
+  return data.choices?.[0]?.message?.content || "The provider returned an empty answer.";
+}
+
 function playground() {
   const textarea = $("#prompt");
   const threshold = $("#t");
@@ -72,8 +87,10 @@ function playground() {
     }
 
     $("#route").textContent = "Routing...";
+    $("#answer").textContent = "Generating answer...";
     try {
       const result = await routePrompt(prompt, t);
+      const answer = await completePrompt(prompt, t);
       const color = result.cheap ? "var(--cheap)" : "var(--strong)";
       $("#tag").style.background = color;
       $("#route").textContent = result.cheap ? "Cheap model" : "Strong model";
@@ -83,6 +100,7 @@ function playground() {
       $("#sv").textContent = Math.round((1 - result.estimated_cost_per_1000 / result.strong_cost_per_1000) * 100) + "%";
       $("#lat").textContent = Math.round(result.latency_ms) + " ms";
       $("#rl").textContent = result.router_latency_ms.toFixed(1) + " ms";
+      $("#answer").textContent = answer;
       if (prompt !== lastPrompt) {
         $("#rc").className = "rail cheap" + (result.cheap ? "" : " off");
         $("#rs").className = "rail strong" + (result.cheap ? " off" : "");
@@ -91,6 +109,7 @@ function playground() {
     } catch (error) {
       $("#route").textContent = "Router unavailable";
       $("#why").textContent = error.message;
+      $("#answer").textContent = "Unable to generate an answer.";
     }
   }
 
