@@ -43,6 +43,18 @@ def health() -> dict[str, str]:
     return {"status": "ok"}
 
 
+@app.get("/readyz")
+def readiness() -> dict:
+    providers = {
+        tier: provider_config(tier) is not None
+        for tier in ("cheap", "strong")
+    }
+    return {
+        "status": "ready" if all(providers.values()) else "degraded",
+        "providers": providers,
+    }
+
+
 @app.get("/v1/models")
 def models() -> dict:
     available = []

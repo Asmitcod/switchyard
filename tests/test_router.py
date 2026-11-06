@@ -27,3 +27,9 @@ def test_openai_models_discovery():
     response = client.get("/v1/models")
     assert response.status_code == 200
     assert response.json()["data"][0]["id"] == "routewise"
+
+
+def test_readiness_does_not_expose_credentials():
+    response = client.get("/readyz")
+    assert response.status_code == 200
+    assert "api_key" not in response.text.lower()

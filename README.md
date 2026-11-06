@@ -13,6 +13,11 @@ python -m uvicorn app.main:app --reload
 
 Open `http://127.0.0.1:8000/` for the playground and `http://127.0.0.1:8000/dashboard` for the dashboard.
 
+Health endpoints:
+
+- `/healthz` confirms the process is running.
+- `/readyz` reports whether both model tiers are configured without revealing credentials.
+
 Run the automated checks with:
 
 ```powershell
@@ -27,6 +32,8 @@ docker run --env-file .env -p 8000:8000 switchyard
 ```
 
 GitHub Actions runs compilation and the automated test suite on pushes and pull requests.
+
+`render.yaml` and `start.sh` provide a deployment starting point for a Docker-based free web service. Add the secrets in the hosting provider dashboard; never commit them.
 
 The easiest setup is:
 

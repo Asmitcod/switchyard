@@ -1,0 +1,23 @@
+services:
+  - type: web
+    name: switchyard
+    runtime: docker
+    plan: free
+    healthCheckPath: /healthz
+    envVars:
+      - key: GROQ_API_KEY
+        sync: false
+      - key: CHEAP_MODEL
+        value: openai/gpt-oss-20b
+      - key: STRONG_MODEL
+        value: openai/gpt-oss-120b
+      - key: GROQ_BASE_URL
+        value: https://api.groq.com/openai/v1
+      - key: DATABASE_URL
+        sync: false
+      - key: ROUTEWISE_API_KEYS
+        sync: false
+      - key: ROUTEWISE_RATE_LIMIT
+        value: "60"
+      - key: ROUTEWISE_USE_TRAINED_MODEL
+        value: "false"
