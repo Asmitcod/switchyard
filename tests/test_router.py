@@ -1,5 +1,6 @@
 from app.router import route_prompt, score_prompt
 from app.main import app
+from app.providers import ProviderConfig
 from fastapi.testclient import TestClient
 
 
@@ -41,3 +42,56 @@ def test_status_does_not_expose_connection_values():
     body = response.text.lower()
     assert "groq_api_key" not in body
     assert "postgresql://" not in body
+
+
+def test_chat_completion_matches_openai_response_shape(monkeypatch):
+    config = ProviderConfig("cheap", "https://provider.test", "test-key", "test-model")
+    monkeypatch.setattr("app.main.provider_config", lambda tier: config if tier == "cheap" else None)
+    monkeypatch.setattr(
+        "app.main.complete",
+        lambda *_args: {
+            "id": "chatcmpl-test",
+            "created": 1,
+            "choices": [
+                {
+                    "index": 0,
+                    "message": {"role": "assistant", "content": "test response"},
+                    "finish_reason": "stop",
+                }
+            ],
+            "usage": {"prompt_tokens": 2, "completion_tokens": 2, "total_tokens": 4},
+        },
+    )
+    monkeypatch.setattr("app.main.log_request", lambda *_args, **_kwargs: None)
+
+    response = client.post(
+        "/v1/chat/completions",
+        json={"model": "routewise", "messages": [{"role": "user", "content": "hello"}]},
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["object"] == "chat.completion"
+    assert body["choices"][0]["message"]["content"] == "test response"
+    assert body["model"] == "test-model"
+
+
+def test_chat_completion_streams_sse_done_marker(monkeypatch):
+    config = ProviderConfig("cheap", "https://provider.test", "test-key", "test-model")
+    monkeypatch.setattr("app.main.provider_config", lambda tier: config if tier == "cheap" else None)
+    monkeypatch.setattr("app.main.stream_complete", lambda *_args: iter(["data: {\"choices\": []}"]))
+    monkeypatch.setattr("app.main.log_request", lambda *_args, **_kwargs: None)
+
+    response = client.post(
+        "/v1/chat/completions",
+        json={
+            "model": "routewise",
+            "messages": [{"role": "user", "content": "hello"}],
+            "stream": True,
+        },
+    )
+
+    assert response.status_code == 200
+    assert response.headers["content-type"].startswith("text/event-stream")
+    assert "data: {\"choices\": []}" in response.text
+    assert "data: [DONE]" in response.text
