@@ -32,6 +32,7 @@ docker run --env-file .env -p 8000:8000 switchyard
 ```
 
 GitHub Actions runs compilation and the automated test suite on pushes and pull requests.
+CI also builds the Docker image to catch deployment packaging errors before release.
 
 `render.yaml` and `start.sh` provide a deployment starting point for a Docker-based free web service. Add the secrets in the hosting provider dashboard; never commit them.
 
