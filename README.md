@@ -26,6 +26,8 @@ docker build -t switchyard .
 docker run --env-file .env -p 8000:8000 switchyard
 ```
 
+GitHub Actions runs compilation and the automated test suite on pushes and pull requests.
+
 The easiest setup is:
 
 ```powershell
