@@ -155,6 +155,7 @@ async function completePrompt(prompt, threshold) {
 function playground() {
   const textarea = $("#prompt");
   const threshold = $("#t");
+  const submit = $("#submit-prompt");
   let lastPrompt = "";
 
   async function run() {
@@ -169,6 +170,10 @@ function playground() {
       return;
     }
 
+    submit.disabled = true;
+    submit.classList.add("loading");
+    submit.innerHTML = "Routing and generating <span>...</span>";
+    $("#submit-hint").textContent = "Using one provider request for this prompt.";
     $("#route").textContent = "Routing...";
     $("#answer").textContent = "Generating answer...";
     try {
@@ -185,6 +190,7 @@ function playground() {
       $("#rl").textContent = result.router_latency_ms.toFixed(1) + " ms";
       $("#source").textContent = `Answered by ${answer.model} (${result.cheap ? "cheap" : "strong"} tier).`;
       $("#answer").innerHTML = renderMarkdown(answer.content);
+      $("#submit-hint").textContent = "Response complete.";
       if (prompt !== lastPrompt) {
         $("#rc").className = "rail cheap" + (result.cheap ? "" : " off");
         $("#rs").className = "rail strong" + (result.cheap ? " off" : "");
@@ -195,18 +201,31 @@ function playground() {
       $("#why").textContent = error.message;
       $("#source").textContent = "Provider response unavailable.";
       $("#answer").textContent = "Unable to generate an answer.";
+      $("#submit-hint").textContent = "Try submitting again.";
+    } finally {
+      submit.disabled = false;
+      submit.classList.remove("loading");
+      submit.innerHTML = "Submit prompt <span>↗</span>";
     }
   }
 
-  textarea.addEventListener("input", run);
-  threshold.addEventListener("input", run);
+  const updatePreview = () => {
+    const prompt = textarea.value.trim();
+    const t = Number(threshold.value);
+    $("#tv").textContent = t.toFixed(2);
+    pareto($("#pareto"), t, prompt ? "var(--cheap)" : "#14213d");
+  };
+  submit.addEventListener("click", run);
+  textarea.addEventListener("input", updatePreview);
+  threshold.addEventListener("input", updatePreview);
   document.querySelectorAll("[data-p]").forEach(button => {
     button.onclick = () => {
       textarea.value = button.dataset.p;
-      run();
+      updatePreview();
+      textarea.focus();
     };
   });
-  run();
+  updatePreview();
 }
 
 async function dashboard() {
