@@ -95,3 +95,16 @@ def test_chat_completion_streams_sse_done_marker(monkeypatch):
     assert response.headers["content-type"].startswith("text/event-stream")
     assert "data: {\"choices\": []}" in response.text
     assert "data: [DONE]" in response.text
+
+
+def test_status_requires_configured_api_key(monkeypatch):
+    monkeypatch.setenv("ROUTEWISE_API_KEYS", "status-test-key")
+
+    unauthorized = client.get("/api/status")
+    authorized = client.get(
+        "/api/status",
+        headers={"Authorization": "Bearer status-test-key"},
+    )
+
+    assert unauthorized.status_code == 401
+    assert authorized.status_code == 200
