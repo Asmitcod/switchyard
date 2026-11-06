@@ -17,6 +17,7 @@ Health endpoints:
 
 - `/healthz` confirms the process is running.
 - `/readyz` reports whether both model tiers are configured without revealing credentials.
+- `/api/status` reports configured provider and storage state without returning secrets. It uses the configured API key protection.
 
 Run the automated checks with:
 
@@ -56,7 +57,7 @@ The backend currently uses a deterministic heuristic router so the UI and API ca
 $env:GROQ_API_KEY="your-key"
 ```
 
-The proxy is available at `POST /v1/chat/completions`. It routes to the selected tier and retries the other configured tier when the first provider fails. Request metadata is persisted locally in `data/routewise.sqlite3`; raw prompts are never stored, only SHA-256 hashes. Set `ROUTEWISE_SQLITE_PATH` to use another local database path. Neon/Postgres support will use the same schema in the deployment phase.
+The proxy is available at `POST /v1/chat/completions`. It routes to the selected tier and retries the other configured tier when the first provider fails. Request metadata is persisted locally in `data/routewise.sqlite3`; raw prompts are never stored, only SHA-256 hashes. Set `ROUTEWISE_SQLITE_PATH` to use another local database path. When `DATABASE_URL` is configured, the same schema is stored in Neon/Postgres; temporary database connectivity failures fall back to SQLite.
 
 The Groq connection has been tested locally with the configured GPT OSS models. Empty upstream assistant responses are treated as provider failures so the configured fallback can be attempted.
 
