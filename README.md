@@ -63,6 +63,8 @@ The Groq connection has been tested locally with the configured GPT OSS models. 
 
 For deployment, set `ROUTEWISE_API_KEYS` to one or more comma-separated client keys. Clients send `Authorization: Bearer <key>`. Requests are limited to 60 per minute per configured key by default; change `ROUTEWISE_RATE_LIMIT` to adjust the limit. Authentication is disabled only when `ROUTEWISE_API_KEYS` is empty, which is convenient for local development.
 
+When API keys are enabled, the browser playground and dashboard ask for a key on the first protected request and keep it only in the current browser session. API clients should send the bearer token directly.
+
 `POST /v1/chat/completions` also supports `stream: true` and returns OpenAI-compatible server-sent events.
 
 `GET /v1/models` exposes the configured RouteWise model and provider tiers for OpenAI-compatible client discovery.

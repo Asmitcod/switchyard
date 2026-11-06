@@ -4,6 +4,20 @@ function usd(value) {
   return "$" + Number(value).toFixed(3);
 }
 
+async function apiFetch(url, options = {}) {
+  const headers = new Headers(options.headers || {});
+  const storedKey = sessionStorage.getItem("routewise_api_key");
+  if (storedKey) headers.set("Authorization", `Bearer ${storedKey}`);
+  const response = await fetch(url, { ...options, headers });
+  if (response.status !== 401) return response;
+
+  const key = window.prompt("Enter your RouteWise API key for this browser session:");
+  if (!key) return response;
+  sessionStorage.setItem("routewise_api_key", key.trim());
+  headers.set("Authorization", `Bearer ${key.trim()}`);
+  return fetch(url, { ...options, headers });
+}
+
 function pareto(svg, threshold, color) {
   const X = x => 50 + x * 500;
   const Y = y => 270 - (y - 55) / 35 * 240;
@@ -31,7 +45,7 @@ function pareto(svg, threshold, color) {
 }
 
 async function routePrompt(prompt, threshold) {
-  const response = await fetch("/api/route", {
+  const response = await apiFetch("/api/route", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ prompt, threshold })
@@ -93,7 +107,7 @@ function playground() {
 
 async function dashboard() {
   try {
-    const response = await fetch("/api/dashboard");
+    const response = await apiFetch("/api/dashboard");
     if (!response.ok) throw new Error("The dashboard API returned an error.");
     const data = await response.json();
     $("#reqs").textContent = data.requests_routed;
