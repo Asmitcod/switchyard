@@ -1,4 +1,5 @@
 import hashlib
+import os
 import time
 from pathlib import Path
 from statistics import quantiles
@@ -52,6 +53,20 @@ def readiness() -> dict:
     return {
         "status": "ready" if all(providers.values()) else "degraded",
         "providers": providers,
+    }
+
+
+@app.get("/api/status")
+def status(_: str = Depends(authenticate_and_rate_limit)) -> dict:
+    providers = {
+        tier: provider_config(tier) is not None
+        for tier in ("cheap", "strong")
+    }
+    return {
+        "service": "switchyard",
+        "providers": providers,
+        "storage": "configured" if os.getenv("DATABASE_URL") else "local",
+        "trained_router": os.getenv("ROUTEWISE_USE_TRAINED_MODEL", "false").lower() == "true",
     }
 
 

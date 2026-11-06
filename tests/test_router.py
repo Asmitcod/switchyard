@@ -33,3 +33,11 @@ def test_readiness_does_not_expose_credentials():
     response = client.get("/readyz")
     assert response.status_code == 200
     assert "api_key" not in response.text.lower()
+
+
+def test_status_does_not_expose_connection_values():
+    response = client.get("/api/status")
+    assert response.status_code == 200
+    body = response.text.lower()
+    assert "groq_api_key" not in body
+    assert "postgresql://" not in body
